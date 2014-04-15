@@ -1,0 +1,741 @@
+/* functions */
+bf = base_font_size is defined ? base_font_size : 16
+ie8 = false
+
+px_rem(n)
+  return unit(n, 'px') unit((n / bf), 'rem')
+
+px_rem_dev(n)
+  return unit((n / bf), 'rem')
+
+non_zero_unit(n)
+  if type(n) is not 'unit'
+    return false
+  else
+    if unit(n) is '' && n is not 0
+      return true
+    else
+      return false
+
+render_shortcut(args)
+  fallback = rem = ''
+
+  for n in args
+    if n == 'auto'
+      fallback += ' 'n
+      rem += ' 'n
+    else
+      fallback += ' '
+      rem += ' '
+      fallback += non_zero_unit(n) ? px_rem(n)[0] : n
+      rem += non_zero_unit(n) ? px_rem(n)[1] : n
+  return fallback rem
+
+render_shortcut_dev(args)
+  ret = ''
+
+  for n in args
+    unless type(n) is 'ident'
+      if n == 'auto'
+        ret += ' 'n
+      else
+        ret += ' '
+        ret += non_zero_unit(n) ? px_rem_dev(n) : n
+  return ret
+
+vendor(prop, args)
+  //depending on prop append different vendor prefixes
+  if prop is 'font-smoothing'
+    -webkit-{prop} args
+    -moz-{prop} args
+    {prop} args
+
+rendor_vendor_prefixes(args)
+  arguments = ''
+  for n in args
+    if type(n) is 'unit'
+      arguments += ' '
+      arguments += non_zero_unit(n) ? px_rem(n)[1] : n
+    else if type(n) is 'ident' or type(n) is 'rgba'
+      arguments += ' '
+      arguments += n
+    else //literal
+      arguments += n
+
+  return arguments
+
+
+_color(n)
+  arguments = ''
+  fallback = ''
+
+  if n is a 'rgba'
+    if alpha(n) is not 1
+      r = red(n)
+      g = green(n)
+      bl = blue(n)
+      fallback = rgb(r,g,bl)
+      arguments = n
+    else
+      arguments = n
+      fallback = n
+  else
+    arguments = n
+    fallback = n
+
+  return fallback arguments
+
+_background(args)
+  arguments = ''
+  fallback = ''
+
+  for n in args
+    if typeof(n) is not 'unit'
+      if n is a 'rgba'
+        if alpha(n) is not 1
+          r = red(n)
+          g = green(n)
+          bl = blue(n)
+          fallback += ' 'rgb(r,g,bl)
+          arguments += ' 'n
+        else
+          arguments += ' 'n
+          fallback += ' 'n
+      else
+        arguments += ' 'n
+        fallback += ' 'n
+    else if typeof(n) is 'string'
+      arguments += ' 'unquote(n)
+      fallback += ' 'unquote(n)
+    else
+      arguments += ' 'n
+      fallback += ' 'n
+
+  return fallback arguments
+
+_border(args)
+  arguments = ''
+  fallback = ''
+
+  for n in args
+    if n is a 'rgba'
+      if alpha(n) is not 1
+        r = red(n)
+        g = green(n)
+        bl = blue(n)
+        fallback += ' 'rgb(r,g,bl)
+        arguments += ' 'n
+      else
+        arguments += ' 'n
+        fallback += ' 'n
+    else
+      arguments += ' 'n
+      fallback += ' 'n
+
+  return fallback arguments
+
+_rgba_exists(args)
+  rgba_req = false
+
+  for n in args
+    if typeof(n) is 'rgba'
+      if alpha(n) is not 1
+        rgba_req = true
+
+  return rgba_req
+
+_calc()
+  args = ()
+  i = 0
+  for prop in arguments
+    if i is not 0
+      if typeof(prop) is 'unit'
+        if unit(prop) is ''
+          prop = px_rem(prop)[1]
+      push(args, prop)
+    i = i + 1
+
+  prop = join(' ', args)
+  vendors = webkit
+
+  if current-property
+      for prefix in vendors
+          arguments = unquote(prop)
+          add-property(current-property[0], s('-%s-calc(%s)', prefix, arguments))
+      s('calc(%s)', arguments)
+  else
+      error('calc() must be used within a property')
+
+_mq(n)
+  ems = n / 16
+  output = unquote('screen and (min-width: '+ems+'em)')
+  unquote(s('%s', output))
+
+/* mixins */
+background(args...)
+  ret = _background( args )
+
+  if _rgba_exists(args)
+    background unquote( ret[0] )
+    background unquote( ret[1] )
+  else
+    background unquote( ret[1] )
+
+background-position(args...)
+  if args[0] is calc
+    background-position _calc(args)
+  else
+    n = args[0]
+    nn = args[1]
+
+    if non_zero_unit(n) || non_zero_unit(nn)
+      if ie8 is false
+        background-position unquote(render_shortcut_dev(args)[0])
+      else
+        background-position unquote(render_shortcut(args)[0])
+        background-position unquote(render_shortcut(args)[1])
+    else
+      background-position unquote(render_shortcut(args)[0])
+
+font-size(args...)
+  n = args[0]
+
+  if non_zero_unit(n)
+    if ie8 is false
+      font-size unquote(render_shortcut_dev(args)[0])
+    else
+      font-size unquote(render_shortcut(args)[0])
+      font-size unquote(render_shortcut(args)[1])
+  else
+    font-size unquote(render_shortcut(args)[0])
+
+
+height(args...)
+  if args[0] is calc
+    height _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        height unquote(render_shortcut_dev(args)[0])
+      else
+        height unquote(render_shortcut(args)[0])
+        height unquote(render_shortcut(args)[1])
+    else
+      height unquote(render_shortcut(args)[0])
+
+
+max-height(args...)
+  if args[0] is calc
+    max-height _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        max-height unquote(render_shortcut_dev(args)[0])
+      else
+        max-height unquote(render_shortcut(args)[0])
+        max-height unquote(render_shortcut(args)[1])
+    else
+      max-height unquote(render_shortcut(args)[0])
+
+
+min-height(args...)
+  if args[0] is calc
+    min-height _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        min-height unquote(render_shortcut_dev(args)[0])
+      else
+        min-height unquote(render_shortcut(args)[0])
+        min-height unquote(render_shortcut(args)[1])
+    else
+      min-height unquote(render_shortcut(args)[0])
+
+
+width(args...)
+  if args[0] is calc
+    width _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        width unquote(render_shortcut_dev(args)[0])
+      else
+        width unquote(render_shortcut(args)[0])
+        width unquote(render_shortcut(args)[1])
+    else
+      width unquote(render_shortcut(args)[0])
+
+
+top(args...)
+  if args[0] is calc
+    top _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        top unquote(render_shortcut_dev(args)[0])
+      else
+        top unquote(render_shortcut(args)[0])
+        top unquote(render_shortcut(args)[1])
+    else
+      top unquote(render_shortcut(args)[0])
+
+
+right(args...)
+  if args[0] is calc
+    right _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        right unquote(render_shortcut_dev(args)[0])
+      else
+        right unquote(render_shortcut(args)[0])
+        right unquote(render_shortcut(args)[1])
+    else
+      right unquote(render_shortcut(args)[0])
+
+
+bottom(args...)
+  if args[0] is calc
+    bottom _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        bottom unquote(render_shortcut_dev(args)[0])
+      else
+        bottom unquote(render_shortcut(args)[0])
+        bottom unquote(render_shortcut(args)[1])
+    else
+      bottom unquote(render_shortcut(args)[0])
+
+
+left(args...)
+  if args[0] is calc
+    left _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        left unquote(render_shortcut_dev(args)[0])
+      else
+        left unquote(render_shortcut(args)[0])
+        left unquote(render_shortcut(args)[1])
+    else
+      left unquote(render_shortcut(args)[0])
+
+
+max-width(args...)
+  if args[0] is calc
+    max-width _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        max-width unquote(render_shortcut_dev(args)[0])
+      else
+        max-width unquote(render_shortcut(args)[0])
+        max-width unquote(render_shortcut(args)[1])
+    else
+      max-width unquote(render_shortcut(args)[0])
+
+
+min-width(args...)
+  if args[0] is calc
+    min-width _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        min-width unquote(render_shortcut_dev(args)[0])
+      else
+        min-width unquote(render_shortcut(args)[0])
+        min-width unquote(render_shortcut(args)[1])
+    else
+      min-width unquote(render_shortcut(args)[0])
+
+
+border(n, args...)
+  if non_zero_unit(n)
+    border px_rem(n)[0] args
+    border px_rem(n)[1] args
+  else
+    border n args
+
+border-top(n, args...)
+  ret = _border( args )
+
+  if _rgba_exists(args)
+    if non_zero_unit(n)
+      border-top px_rem(n)[0] unquote( ret[0] )
+      border-top px_rem(n)[1] unquote( ret[1] )
+    else
+      border-top n unquote( ret[0] )
+      border-top n unquote( ret[1] )
+  else
+    if non_zero_unit(n)
+      border-top px_rem(n)[0] unquote( ret[1] )
+      border-top px_rem(n)[1] unquote( ret[1] )
+    else
+      border-top n unquote( ret[1] )
+
+border-right(n, args...)
+  ret = _border( args )
+
+  if _rgba_exists(args)
+    if non_zero_unit(n)
+      border-right px_rem(n)[0] unquote( ret[0] )
+      border-right px_rem(n)[1] unquote( ret[1] )
+    else
+      border-right n unquote( ret[0] )
+      border-right n unquote( ret[1] )
+  else
+    if non_zero_unit(n)
+      border-right px_rem(n)[0] unquote( ret[1] )
+      border-right px_rem(n)[1] unquote( ret[1] )
+    else
+      border-right n unquote( ret[1] )
+
+border-bottom(n, args...)
+  ret = _border( args )
+
+  if _rgba_exists(args)
+    if non_zero_unit(n)
+      border-bottom px_rem(n)[0] unquote( ret[0] )
+      border-bottom px_rem(n)[1] unquote( ret[1] )
+    else
+      border-bottom n unquote( ret[0] )
+      border-bottom n unquote( ret[1] )
+  else
+    if non_zero_unit(n)
+      border-bottom px_rem(n)[0] unquote( ret[1] )
+      border-bottom px_rem(n)[1] unquote( ret[1] )
+    else
+      border-bottom n unquote( ret[1] )
+
+border-left(n, args...)
+  ret = _border( args )
+
+  if _rgba_exists(args)
+    if non_zero_unit(n)
+      border-left px_rem(n)[0] unquote( ret[0] )
+      border-left px_rem(n)[1] unquote( ret[1] )
+    else
+      border-left n unquote( ret[0] )
+      border-left n unquote( ret[1] )
+  else
+    if non_zero_unit(n)
+      border-left px_rem(n)[0] unquote( ret[1] )
+      border-left px_rem(n)[1] unquote( ret[1] )
+    else
+      border-left n unquote( ret[1] )
+
+border-top-color(n)
+  ret = _color(n)
+
+  if _rgba_exists(n)
+    border-top-color ret[0]
+    border-top-color ret[1]
+  else
+    border-top-color ret[1]
+
+border-right-color(n)
+  ret = _color(n)
+
+  if _rgba_exists(n)
+    border-right-color ret[0]
+    border-right-color ret[1]
+  else
+    border-right-color ret[1]
+
+border-bottom-color(n)
+  ret = _color(n)
+
+  if _rgba_exists(n)
+    border-bottom-color ret[0]
+    border-bottom-color ret[1]
+  else
+    border-bottom-color ret[1]
+
+border-left-color(n)
+  ret = _color(n)
+
+  if _rgba_exists(n)
+    border-left-color ret[0]
+    border-left-color ret[1]
+  else
+    border-left-color ret[1]
+
+
+border-width(args...)
+  border-width unquote(render_shortcut(args)[0])
+  border-width unquote(render_shortcut(args)[1])
+
+border-top-width(args...)
+  if args[0] is calc
+    border-top-width _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        border-top-width unquote(render_shortcut_dev(args)[0])
+      else
+        border-top-width unquote(render_shortcut(args)[0])
+        border-top-width unquote(render_shortcut(args)[1])
+    else
+      border-top-width unquote(render_shortcut(args)[0])
+
+border-right-width(args...)
+  if args[0] is calc
+    border-right-width _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        border-right-width unquote(render_shortcut_dev(args)[0])
+      else
+        border-right-width unquote(render_shortcut(args)[0])
+        border-right-width unquote(render_shortcut(args)[1])
+    else
+      border-right-width unquote(render_shortcut(args)[0])
+
+border-bottom-width(args...)
+  if args[0] is calc
+    border-bottom-width _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        border-bottom-width unquote(render_shortcut_dev(args)[0])
+      else
+        border-bottom-width unquote(render_shortcut(args)[0])
+        border-bottom-width unquote(render_shortcut(args)[1])
+    else
+      border-bottom-width unquote(render_shortcut(args)[0])
+
+border-left-width(args...)
+  if args[0] is calc
+    border-left-width _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        border-left-width unquote(render_shortcut_dev(args)[0])
+      else
+        border-left-width unquote(render_shortcut(args)[0])
+        border-left-width unquote(render_shortcut(args)[1])
+    else
+      border-left-width unquote(render_shortcut(args)[0])
+
+padding-top(args...)
+  if args[0] is calc
+    padding-top _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        padding-top unquote(render_shortcut_dev(args)[0])
+      else
+        padding-top unquote(render_shortcut(args)[0])
+        padding-top unquote(render_shortcut(args)[1])
+    else
+      padding-top unquote(render_shortcut(args)[0])
+
+
+padding-right(args...)
+  if args[0] is calc
+    padding-right _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        padding-right unquote(render_shortcut_dev(args)[0])
+      else
+        padding-right unquote(render_shortcut(args)[0])
+        padding-right unquote(render_shortcut(args)[1])
+    else
+      padding-right unquote(render_shortcut(args)[0])
+
+
+padding-bottom(args...)
+  if args[0] is calc
+    padding-bottom _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        padding-bottom unquote(render_shortcut_dev(args)[0])
+      else
+        padding-bottom unquote(render_shortcut(args)[0])
+        padding-bottom unquote(render_shortcut(args)[1])
+    else
+      padding-bottom unquote(render_shortcut(args)[0])
+
+
+padding-left(args...)
+  if args[0] is calc
+    padding-left _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        padding-left unquote(render_shortcut_dev(args)[0])
+      else
+        padding-left unquote(render_shortcut(args)[0])
+        padding-left unquote(render_shortcut(args)[1])
+    else
+      padding-left unquote(render_shortcut(args)[0])
+
+
+margin-top(args...)
+  if args[0] is calc
+    margin-top _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        margin-top unquote(render_shortcut_dev(args)[0])
+      else
+        margin-top unquote(render_shortcut(args)[0])
+        margin-top unquote(render_shortcut(args)[1])
+    else
+      margin-top unquote(render_shortcut(args)[0])
+
+
+margin-right(args...)
+  if args[0] is calc
+    margin-right _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        margin-right unquote(render_shortcut_dev(args)[0])
+      else
+        margin-right unquote(render_shortcut(args)[0])
+        margin-right unquote(render_shortcut(args)[1])
+    else
+      margin-right unquote(render_shortcut(args)[0])
+
+
+margin-bottom(args...)
+  if args[0] is calc
+    margin-bottom _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        margin-bottom unquote(render_shortcut_dev(args)[0])
+      else
+        margin-bottom unquote(render_shortcut(args)[0])
+        margin-bottom unquote(render_shortcut(args)[1])
+    else
+      margin-bottom unquote(render_shortcut(args)[0])
+
+
+margin-left(args...)
+  if args[0] is calc
+    margin-left _calc(args)
+  else
+    n = args[0]
+
+    if non_zero_unit(n)
+      if ie8 is false
+        margin-left unquote(render_shortcut_dev(args)[0])
+      else
+        margin-left unquote(render_shortcut(args)[0])
+        margin-left unquote(render_shortcut(args)[1])
+    else
+      margin-left unquote(render_shortcut(args)[0])
+
+background-size(args...)
+  if args[0] is calc
+    background-size _calc(args)
+  else
+    n = args[0]
+    if typeof(n) is 'unit'
+      if non_zero_unit(n)
+        if ie8 is false
+          background-size unquote(render_shortcut_dev(args)[0])
+        else
+          background-size unquote(render_shortcut(args)[0])
+          background-size unquote(render_shortcut(args)[1])
+      else
+        background-size unquote(render_shortcut(args)[0])
+    else
+      background-size args
+
+
+margin(args...)
+  margin unquote(render_shortcut(args)[0])
+  margin unquote(render_shortcut(args)[1])
+
+padding(args...)
+  padding unquote(render_shortcut(args)[0])
+  padding unquote(render_shortcut(args)[1])
+
+border-radius(args...)
+  border-radius unquote( rendor_vendor_prefixes( args ) )
+
+box-shadow(args...)
+  props = ()
+  for arg in arguments
+    push(props, (arg))
+  box-shadow unquote( rendor_vendor_prefixes( props ) )
+
+font-smoothing(args...)
+  props = ()
+  for arg in arguments
+    push(props, (arg))
+  vendor('font-smoothing', unquote( rendor_vendor_prefixes( props )))
+
+background-linear-gradient(startPoint, startColor, startInterval, endColor, endInterval, deprecatedWebkitStartPoint = false, deprecatedWebkitEndPoint = false)
+  background-color startColor
+  if deprecatedWebkitStartPoint && deprecatedWebkitEndPoint
+    background-image -webkit-gradient(linear, deprecatedWebkitStartPoint, deprecatedWebkitEndPoint, color-stop(startInterval, startColor), color-stop(endInterval, endColor))
+  background-image -webkit-linear-gradient(startPoint, startColor startInterval, endColor endInterval)
+  background-image -moz-linear-gradient(startPoint, startColor startInterval, endColor endInterval)
+  background-image -ms-linear-gradient(startPoint, startColor startInterval, endColor endInterval)
+  background-image -o-linear-gradient(startPoint, startColor startInterval, endColor endInterval)
+  background-image linear-gradient(startPoint, startColor startInterval, endColor endInterval)
+
+opacity(arg)
+  -ms-filter  \"s('progid:DXImageTransform.Microsoft.Alpha(Opacity=%s)', arg * 100)\"
+  opacity arg
+
+//helper mixins
+faux_column()
+  margin-bottom -10000px
+  padding-bottom 10000px
+
+abs()
+  position absolute
+  top 0
+  left 0
+  height 100%
+  width 100%
