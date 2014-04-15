@@ -48,7 +48,7 @@ package.box
 ###############
 .bowerrc
 Gruntfile.js
-README.md
 app.build*.js
 bower.json
 makefile
+README.md
